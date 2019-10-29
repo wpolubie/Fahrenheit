@@ -24,15 +24,20 @@ public class KlientNBP {
 	ExchangeRatesSeries exrs = new ExchangeRatesSeries();
 	List<Rate> syl;
 
-	private double average;
 	private double sum;
 
-	@GET
-	@Path("/{currency}/{lastDays}")
-	@Consumes(MediaType.APPLICATION_XML)
-	@Produces(MediaType.APPLICATION_XML)
-	public ExchangeRatesSeries getStream(@PathParam("currency") String curParam, @PathParam("lastDays") String numParam)
-			throws MalformedURLException {
+	private double calculateAverage() {
+		ArrayList<Double> aver = new ArrayList<Double>();
+
+		for (Rate field : syl) {
+			aver.add(field.getRate());
+			System.out.println(field.getRate());
+			sum += field.getRate();
+		}
+		return sum / aver.size();
+	}
+
+	public ExchangeRatesSeries unmarshaller(String curParam, String numParam) throws MalformedURLException {
 		try {
 			JAXBContext jc = JAXBContext.newInstance(ExchangeRatesSeries.class);
 			Unmarshaller u = jc.createUnmarshaller();
@@ -50,6 +55,15 @@ public class KlientNBP {
 			System.out.println("Niepowodzenie");
 		}
 		return null;
+	}
+
+	@GET
+	@Path("/{currency}/{lastDays}")
+	@Consumes(MediaType.APPLICATION_XML)
+	@Produces(MediaType.APPLICATION_XML)
+	public ExchangeRatesSeries getStream(@PathParam("currency") String curParam, @PathParam("lastDays") String numParam)
+			throws MalformedURLException {
+		return unmarshaller(curParam, numParam);
 	}
 
 	@GET
@@ -58,23 +72,7 @@ public class KlientNBP {
 	@Produces(MediaType.APPLICATION_JSON)
 	public ExchangeRatesSeries getStreamJSON(@PathParam("currency") String curParam,
 			@PathParam("lastDays") String numParam) throws MalformedURLException {
-		try {
-			JAXBContext jc = JAXBContext.newInstance(ExchangeRatesSeries.class);
-			Unmarshaller u = jc.createUnmarshaller();
-			URL url = new URL(
-					"http://api.nbp.pl/api/exchangerates/rates/a/" + curParam + "/last/" + numParam + "/?format=xml");
-			exrs = (ExchangeRatesSeries) u.unmarshal(url);
-			System.out.println(" unmarshalled " + exrs.getCode());
-			System.out.println(" unmarshalled " + exrs.getRates());
-			syl = exrs.getRates();
-
-			return exrs;
-
-		} catch (JAXBException e) {
-			e.printStackTrace();
-			System.out.println("Niepowodzenie");
-		}
-		return null;
+		return unmarshaller(curParam, numParam);
 	}
 
 	@GET
@@ -83,23 +81,7 @@ public class KlientNBP {
 	@Produces(MediaType.TEXT_PLAIN)
 	public ExchangeRatesSeries getStreamTEXT(@PathParam("currency") String curParam,
 			@PathParam("lastDays") String numParam) throws MalformedURLException {
-		try {
-			JAXBContext jc = JAXBContext.newInstance(ExchangeRatesSeries.class);
-			Unmarshaller u = jc.createUnmarshaller();
-			URL url = new URL(
-					"http://api.nbp.pl/api/exchangerates/rates/a/" + curParam + "/last/" + numParam + "/?format=xml");
-			exrs = (ExchangeRatesSeries) u.unmarshal(url);
-			System.out.println(" unmarshalled " + exrs.getCode());
-			System.out.println(" unmarshalled " + exrs.getRates());
-			syl = exrs.getRates();
-
-			return exrs;
-
-		} catch (JAXBException e) {
-			e.printStackTrace();
-			System.out.println("Niepowodzenie");
-		}
-		return null;
+		return unmarshaller(curParam, numParam);
 	}
 
 	@GET
@@ -108,17 +90,8 @@ public class KlientNBP {
 	public String calculateAverage(@PathParam("currency") String curParam, @PathParam("lastDays") String numParam,
 			@PathParam("format") String formatParam) throws MalformedURLException {
 		syl = getStream(curParam, numParam).getRates();
-		ArrayList<Double> aver = new ArrayList<Double>();
 
-		for (Rate field : syl) {
-			aver.add(field.getRate());
-			System.out.println(field.getRate());
-			sum += field.getRate();
-
-		}
-		average = sum / aver.size();
-
-		return "Œredni kurs" + curParam.toUpperCase() +" z ostatnich " + numParam + " dni to : " + average;
+		return "Œredni kurs" + curParam.toUpperCase() + " z ostatnich " + numParam + " dni to : " + calculateAverage();
 	}
 
 	@GET
@@ -127,17 +100,8 @@ public class KlientNBP {
 	public String getAverageXml(@PathParam("currency") String curParam, @PathParam("lastDays") String numParam)
 			throws MalformedURLException {
 		syl = getStream(curParam, numParam).getRates();
-		ArrayList<Double> aver = new ArrayList<Double>();
 
-		for (Rate field : syl) {
-			aver.add(field.getRate());
-			System.out.println(field.getRate());
-			sum += field.getRate();
-
-		}
-		average = sum / aver.size();
-
-		return "<currency-webapp><currency-code>" + curParam + "</currency-code><average>" + average
+		return "<currency-webapp><currency-code>" + curParam + "</currency-code><average>" + calculateAverage()
 				+ "</average><last-days>" + numParam + "</last-days></currency-webapp>";
 	}
 
@@ -147,17 +111,9 @@ public class KlientNBP {
 	public String getAverageJson(@PathParam("currency") String curParam, @PathParam("lastDays") String numParam)
 			throws MalformedURLException {
 		syl = getStream(curParam, numParam).getRates();
-		ArrayList<Double> aver = new ArrayList<Double>();
 
-		for (Rate field : syl) {
-			aver.add(field.getRate());
-			System.out.println(field.getRate());
-			sum += field.getRate();
-
-		}
-		average = sum / aver.size();
-
-		return "{ \"currency\": " + curParam.toUpperCase() + ", \r\n \"last\": " + numParam + ", \r\n \"average\": " + average + "}";
+		return "{ \"currency\": " + curParam.toUpperCase() + ", \r\n \"last\": " + numParam + ", \r\n \"average\": "
+				+ calculateAverage() + "}";
 	}
 
 	@GET
@@ -166,19 +122,10 @@ public class KlientNBP {
 	public String getAverageHtml(@PathParam("currency") String curParam, @PathParam("lastDays") String numParam)
 			throws MalformedURLException {
 		syl = getStream(curParam, numParam).getRates();
-		ArrayList<Double> aver = new ArrayList<Double>();
 
-		for (Rate field : syl) {
-			aver.add(field.getRate());
-			System.out.println(field.getRate());
-			sum += field.getRate();
-
-		}
-		average = sum / aver.size();
-
-		return "<!DOCTYPE html>\r\n" + "<html>\r\n" + "<body>\r\n" + "<h1><b> " + average + " </b></h1>\r\n"
-				+ "<p>Kurs œredni " + curParam.toUpperCase() + " z ostatnich " + numParam + " dni </p>\r\n" + "</body>\r\n"
-				+ "</html>\r\n";
+		return "<!DOCTYPE html>\r\n" + "<html>\r\n" + "<body>\r\n" + "<h1><b> " + calculateAverage() + " </b></h1>\r\n"
+				+ "<p>Kurs œredni " + curParam.toUpperCase() + " z ostatnich " + numParam + " dni </p>\r\n"
+				+ "</body>\r\n" + "</html>\r\n";
 
 	}
 }
